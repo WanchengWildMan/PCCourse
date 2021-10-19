@@ -1,16 +1,16 @@
-// Lexical_Analysis.cpp : ¶¨Òå¿ØÖÆÌ¨Ó¦ÓÃ³ÌĞòµÄÈë¿Úµã¡£
+// Lexical_Analysis.cpp : å®šä¹‰æ§åˆ¶å°åº”ç”¨ç¨‹åºçš„å…¥å£ç‚¹ã€‚
 //
 #include "iostream"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 using namespace std;
-//´Ê·¨·ÖÎö³ÌĞò
-//Ê×ÏÈ¶¨ÒåÖÖ±ğÂë
+//è¯æ³•åˆ†æç¨‹åº
+//é¦–å…ˆå®šä¹‰ç§åˆ«ç 
 /*
-µÚÒ»Àà£º±êÊ¶·û   letter(letter | digit)*  ÎŞÇî¼¯
-µÚ¶şÀà£º³£Êı    (digit)+  ÎŞÇî¼¯
-µÚÈıÀà£º±£Áô×Ö(32)
+ç¬¬ä¸€ç±»ï¼šæ ‡è¯†ç¬¦   letter(letter | digit)*  æ— ç©·é›†
+ç¬¬äºŒç±»ï¼šå¸¸æ•°    (digit)+  æ— ç©·é›†
+ç¬¬ä¸‰ç±»ï¼šä¿ç•™å­—(32)
 auto       break    case     char        const      continue
 default    do       double   else        enum       extern
 float      for      goto     if          int        long
@@ -18,15 +18,15 @@ register   return   short    signed      sizeof     static
 struct     switch   typedef  union       unsigned   void
 volatile    while
 
-µÚËÄÀà£º½ç·û  ¡®/*¡¯¡¢¡®//¡¯¡¢ () { } [ ] " "  '
-µÚÎåÀà£ºÔËËã·û <¡¢<=¡¢>¡¢>=¡¢=¡¢+¡¢-¡¢*¡¢/¡¢^¡¢
+ç¬¬å››ç±»ï¼šç•Œç¬¦  â€˜/*â€™ã€â€˜//â€™ã€ () { } [ ] " "  '
+ç¬¬äº”ç±»ï¼šè¿ç®—ç¬¦ <ã€<=ã€>ã€>=ã€=ã€+ã€-ã€*ã€/ã€^ã€
 
-¶ÔËùÓĞ¿ÉÊı·ûºÅ½øĞĞ±àÂë£º
+å¯¹æ‰€æœ‰å¯æ•°ç¬¦å·è¿›è¡Œç¼–ç ï¼š
 <$,0>
 <auto,1>
 ...
 <while,32>
-<+£¬33>
+<+ï¼Œ33>
 <-,34>
 <*,35>
 </,36>
@@ -51,8 +51,8 @@ volatile    while
 <||,55>
 <%,56>
 <~,57>
-<<<,58>×óÒÆ
-<>>,59>ÓÒÒÆ
+<<<,58>å·¦ç§»
+<>>,59>å³ç§»
 <[,60>
 <],61>
 <{,62>
@@ -62,15 +62,22 @@ volatile    while
 <?,66>
 <:,67>
 <!,68>
+<+=,69>
+<-=,70>
+<*=,71>
+</=,72>
+<&=,73>
+<|=,74>
 "[","]","{","}"
-<³£Êı99  ,ÊıÖµ>
-<±êÊ¶·û100 £¬±êÊ¶·ûÖ¸Õë>
+<å¸¸æ•°99  ,æ•°å€¼>
+<æ ‡è¯†ç¬¦100 ï¼Œæ ‡è¯†ç¬¦æŒ‡é’ˆ>
 
 
 */
 
 /****************************************************************************************/
-//È«¾Ö±äÁ¿£¬±£Áô×Ö±í
+int resourceLen = 0;
+//å…¨å±€å˜é‡ï¼Œä¿ç•™å­—è¡¨
 static char reserveWord[32][20] = {
     "auto",     "break",  "case",    "char",   "const",    "continue",
     "default",  "do",     "double",  "else",   "enum",     "extern",
@@ -78,33 +85,34 @@ static char reserveWord[32][20] = {
     "register", "return", "short",   "signed", "sizeof",   "static",
     "struct",   "switch", "typedef", "union",  "unsigned", "void",
     "volatile", "while"};
-//½ç·ûÔËËã·û±í,¸ù¾İĞèÒª¿ÉÒÔ×ÔĞĞÔö¼Ó
+//ç•Œç¬¦è¿ç®—ç¬¦è¡¨,æ ¹æ®éœ€è¦å¯ä»¥è‡ªè¡Œå¢åŠ 
 static char operatorOrDelimiter[41][10] = {
     "+",  "-", "*", "/",       "<",  "<=", ">",  ">=", "=", "==", "!=",
     ";",  "(", ")", "^",       ",",  "\"", "\'", "#",  "&", "&&", "|",
     "||", "%", "~", "<<",      ">>", "[",  "]",  "{",  "}", "\\", ".",
     "\?", ":", "!", /**/ "+=", "-=", "*=", "|=", "&="};
 
-static char IDentifierTbl[1000][50] = {""};  //±êÊ¶·û±í
+static char IDentifierTbl[1000][50] = {""};  //æ ‡è¯†ç¬¦è¡¨
 int IDentifierTblLen = 0;
 int lineMap[1000004], colMap[1000004];
+const char FILENAME[] = "testHard.c";
 /****************************************************************************************/
 
-/********²éÕÒÊÇ·ñÊÇ±£Áô×Ö*****************/
+/********æŸ¥æ‰¾æ˜¯å¦æ˜¯ä¿ç•™å­—*****************/
 int searchReserve(char reserveWord[][20], char s[]) {
-  //×Ô¼ºÊµÏÖ
+  //è‡ªå·±å®ç°
   for (int i = 0; i < 32; i++) {
     if (strcmp(reserveWord[i], s) == 0) {
-      return i;
+      return i + 1;
     }
   }
   return -1;
 }
-/********²éÕÒ±£Áô×Ö*****************/
+/********æŸ¥æ‰¾ä¿ç•™å­—*****************/
 
-/*********************ÅĞ¶ÏÊÇ·ñÎª×ÖÄ¸********************/
+/*********************åˆ¤æ–­æ˜¯å¦ä¸ºå­—æ¯********************/
 bool IsLetter(char letter) {
-  //×¢ÒâCÓïÑÔÔÊĞíÏÂ»®ÏßÒ²Îª±êÊ¶·ûµÄÒ»²¿·Ö¿ÉÒÔ·ÅÔÚÊ×²¿»òÆäËûµØ·½
+  //æ³¨æ„Cè¯­è¨€å…è®¸ä¸‹åˆ’çº¿ä¹Ÿä¸ºæ ‡è¯†ç¬¦çš„ä¸€éƒ¨åˆ†å¯ä»¥æ”¾åœ¨é¦–éƒ¨æˆ–å…¶ä»–åœ°æ–¹
   if (letter >= 'a' && letter <= 'z' || letter >= 'A' && letter <= 'Z' ||
       letter == '_') {
     return true;
@@ -112,9 +120,9 @@ bool IsLetter(char letter) {
     return false;
   }
 }
-/*********************ÅĞ¶ÏÊÇ·ñÎª×ÖÄ¸********************/
+/*********************åˆ¤æ–­æ˜¯å¦ä¸ºå­—æ¯********************/
 
-/*****************ÅĞ¶ÏÊÇ·ñÎªÊı×Ö************************/
+/*****************åˆ¤æ–­æ˜¯å¦ä¸ºæ•°å­—************************/
 bool IsDigit(char digit) {
   if (digit >= '0' && digit <= '9') {
     return true;
@@ -122,95 +130,114 @@ bool IsDigit(char digit) {
     return false;
   }
 }
-/*****************ÅĞ¶ÏÊÇ·ñÎªÊı×Ö************************/
+/*****************åˆ¤æ–­æ˜¯å¦ä¸ºæ•°å­—************************/
 bool IsOpr(char *s) {
-  for (int i = 0; i < 36; i++) {
-    if (strcpy(operatorOrDelimiter[i], s) == 0) return 1;
+  for (int i = 0; i < 41; i++) {
+    if (strcmp(operatorOrDelimiter[i], s) == 0) return 1;
   }
   return 0;
 }
-/************ÅĞ¶ÏÊÇ²»ÊÇhexºÏ·¨*********************/
+/************åˆ¤æ–­æ˜¯ä¸æ˜¯hexåˆæ³•*********************/
 bool IsHexOK(char ch) {
   return IsDigit(ch) || (tolower(ch) >= 'a' && tolower(ch) <= 'f');
 }
-/***********ÅĞ¶ÏbinÊÇ²»ÊÇºÏ·¨*********************/
+/***********åˆ¤æ–­binæ˜¯ä¸æ˜¯åˆæ³•*********************/
 bool IsBinOK(char ch) { return ch == '0' || ch == '1'; }
 bool IsOctOK(char ch) { return '0' <= ch && ch <= '7'; }
-/********************±àÒëÔ¤´¦Àí£¬È¡³öÎŞÓÃµÄ×Ö·ûºÍ×¢ÊÍ**********************/
-int lineCnt = 0;
+/********************ç¼–è¯‘é¢„å¤„ç†ï¼Œå–å‡ºæ— ç”¨çš„å­—ç¬¦å’Œæ³¨é‡Š**********************/
+int lineCnt = 1;
+
+void throwError(char err[], int line, int col) {
+  char *msg = new char[104];
+  sprintf(msg, "%s: %s:%d:%d", err, FILENAME, line, col);
+  throw msg;
+}
 void filterResource(char r[], int pProject) {
   char tempString[10000];
   int count = 0, colCnt = 0;
   for (int i = 0; i <= pProject; i++) {
-    //×Ô¼ºÊµÏÖ£¬´ÓÔ´³ÌĞòÖĞÉ¾³ı»»ĞĞ·û\n¡¢ÖÆ±í·û\t¡¢»Ø³µ·û\r£¬É¾³ı/*  */»òÕß
-    ////°üº¬µÄ×¢ÊÍ¡£
-    if (r[i] == '\n' || r[i] == '\t' || r[i] == '\r') {
-      if (r[i] == '\n') lineCnt++, colCnt = 0;
-      continue;
-    } else if (r[i] == '/' && r[i + 1] == '*') {
-      int j = i + 2;
-      while (!(r[j] == '*' && r[j + 1] == '/')) j++;
-    } else if (r[i] == '/' && r[i + 1] == '/') {
-      int j = i + 1;
-      while (r[j + 1] != '\n') j++;
-      i = j;
-    } else
-      tempString[count++] = r[i], lineMap[count - 1] = lineCnt,
-      colMap[count - 1] = ++colCnt;
+    try {
+      //è‡ªå·±å®ç°ï¼Œä»æºç¨‹åºä¸­åˆ é™¤æ¢è¡Œç¬¦\nã€åˆ¶è¡¨ç¬¦\tã€å›è½¦ç¬¦\rï¼Œåˆ é™¤/*  */æˆ–è€…
+      ////åŒ…å«çš„æ³¨é‡Šã€‚
+      if (r[i] == '\n' || r[i] == '\t' || r[i] == '\r') {
+        if (r[i] == '\n') lineCnt++, colCnt = 1;
+        continue;
+      } else if (r[i] == '/' && r[i + 1] == '*') {
+        int j = i + 2;
+        while (!(r[j] == '*' && r[j + 1] == '/')) {
+          if (r[j] == '\n') lineCnt++, colCnt = 1;
+          if (j == strlen(r)) {
+            throwError("/**/ Match Error", ++lineCnt, ++colCnt);
+          }
+          if (r[j] == '/' && r[j + 1] == '*') {
+            throwError("/**/Wrap Error", ++lineCnt, ++colCnt);
+          }
+          j++;
+        };
+        i = j + 1;
+      } else if (r[i] == '/' && r[i + 1] == '/') {
+        int j = i + 1;
+        while (r[j + 1] != '\n') j++;
+        i = j;
+      } else
+        tempString[count++] = r[i], lineMap[count - 1] = lineCnt,
+        colMap[count - 1] = ++colCnt;
+    } catch (char *e) {
+      printf("%s\n", e);
+      exit(0);
+    }
   }
   tempString[count] = '\0';
-  strcpy(r, tempString);  //²úÉú¾»»¯Ö®ºóµÄÔ´³ÌĞò
+  strcpy(r, tempString);  //äº§ç”Ÿå‡€åŒ–ä¹‹åçš„æºç¨‹åº
 }
-/********************±àÒëÔ¤´¦Àí£¬È¡³öÎŞÓÃµÄ×Ö·ûºÍ×¢ÊÍ**********************/
+/********************ç¼–è¯‘é¢„å¤„ç†ï¼Œå–å‡ºæ— ç”¨çš„å­—ç¬¦å’Œæ³¨é‡Š**********************/
 
-/****************************·ÖÎö×Ó³ÌĞò£¬Ëã·¨ºËĞÄ***********************/
+/****************************åˆ†æå­ç¨‹åºï¼Œç®—æ³•æ ¸å¿ƒ***********************/
 void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
   try {
-    //¸ù¾İDFAµÄ×´Ì¬×ª»»Í¼Éè¼Æ
-    int i, count = 0;  // countÓÃÀ´×ötoken[]µÄÖ¸Ê¾Æ÷£¬ÊÕ¼¯ÓĞÓÃ×Ö·û
-    char ch;           //×÷ÎªÅĞ¶ÏÊ¹ÓÃ
+    //æ ¹æ®DFAçš„çŠ¶æ€è½¬æ¢å›¾è®¾è®¡
+    int i, count = 0;  // countç”¨æ¥åštoken[]çš„æŒ‡ç¤ºå™¨ï¼Œæ”¶é›†æœ‰ç”¨å­—ç¬¦
+    char ch;           //ä½œä¸ºåˆ¤æ–­ä½¿ç”¨
     ch = resourceProject[pProject];
     while (ch == ' ') {
-      //¹ıÂË¿Õ¸ñ£¬·ÀÖ¹³ÌĞòÒòÊ¶±ğ²»ÁË¿Õ¸ñ¶ø½áÊø
+      //è¿‡æ»¤ç©ºæ ¼ï¼Œé˜²æ­¢ç¨‹åºå› è¯†åˆ«ä¸äº†ç©ºæ ¼è€Œç»“æŸ
       pProject++;
       ch = resourceProject[pProject];
     }
     for (i = 0; i < 20; i++) {
-      //Ã¿´ÎÊÕ¼¯Ç°ÏÈÇåÁã
+      //æ¯æ¬¡æ”¶é›†å‰å…ˆæ¸…é›¶
       token[i] = '\0';
     }
     if (IsLetter(resourceProject[pProject])) {
-      //¿ªÍ·Îª×ÖÄ¸£¬¶ÁÈëºóÃæµÄ×Ö·û£¬ÅĞ¶ÏÊÇ·ñÎª±êÊ¶·û£¬²¢½«×Ö·û´®´æ´¢ÔÚtokenÖĞ£¬×Ô¼ºÊµÏÖ¡£
-      while (IsLetter(ch)) {
+      //å¼€å¤´ä¸ºå­—æ¯ï¼Œè¯»å…¥åé¢çš„å­—ç¬¦ï¼Œåˆ¤æ–­æ˜¯å¦ä¸ºæ ‡è¯†ç¬¦ï¼Œå¹¶å°†å­—ç¬¦ä¸²å­˜å‚¨åœ¨tokenä¸­ï¼Œè‡ªå·±å®ç°ã€‚
+      while (IsLetter(ch) || IsDigit(ch)) {
         token[count++] = ch, ch = resourceProject[pProject + count],
         token[count] = '\0';
       }
 
-      //²é±íÕÒµ½¹Ø¼ü×ÖµÄÖÖ±ğÂë£¬×Ô¼ºÊµÏÖ
+      //æŸ¥è¡¨æ‰¾åˆ°å…³é”®å­—çš„ç§åˆ«ç ï¼Œè‡ªå·±å®ç°
       syn = searchReserve(reserveWord, token);
-
       if (syn == -1) {
-        //Èô²»ÊÇ¹Ø¼ü×ÖÔòÊÇ±êÊ¶·û
-        syn = 100;  //±êÊ¶·ûÖÖ±ğÂë
+        //è‹¥ä¸æ˜¯å…³é”®å­—åˆ™æ˜¯æ ‡è¯†ç¬¦
+        syn = 100;  //æ ‡è¯†ç¬¦ç§åˆ«ç 
       }
       pProject += count;
       return;
-    } else if (IsDigit(resourceProject[pProject])) {  //-----------Ê¶±ğ³£Êı
+    } else if (IsDigit(resourceProject[pProject])) {  //-----------è¯†åˆ«å¸¸æ•°
       // if (resourceProject[pProject] == '-')
       //   token[count++] = resourceProject[pProject++];
       if (resourceProject[pProject] == '0' &&
-          IsLetter(resourceProject[pProject + 1])) {  // binºÍhex
+          IsLetter(resourceProject[pProject + 1])) {  // binå’Œhex
         if (resourceProject[pProject + 1] == 'x' ||   // hex
             resourceProject[pProject + 1] == 'X') {
           strcpy(token + count, "0x"), count += 2, pProject += 2;
-          while (IsDigit(resourceProject[pProject])) {
-            if (!IsHexOK(resourceProject[pProject])) {
-              char msg[1004];
-              sprintf(msg, "Hex Error:%d,%d", lineMap[pProject],
-                      colMap[pProject]);
-              throw msg;
-            }
+          while (IsHexOK(resourceProject[pProject])) {
             token[count++] = resourceProject[pProject], pProject++;
+          }
+          char _[2];
+          _[0] = resourceProject[pProject], _[1] = '\0';
+          if (!IsOpr(_) && resourceProject[pProject] != ' ') {
+            throwError("Hex Error", lineMap[pProject], colMap[pProject]);
           }
         } else if (resourceProject[pProject + 1] == 'B' ||
                    resourceProject[pProject + 1] == 'b') {  // bin
@@ -218,8 +245,7 @@ void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
           while (IsDigit(resourceProject[pProject])) {
             if (!IsBinOK(resourceProject[pProject])) {
               char msg[1004];
-              sprintf(msg, "Bin Error:%d,%d", lineMap[pProject],
-                      colMap[pProject]);
+              throwError("Bin Error", lineMap[pProject], colMap[pProject]);
               throw msg;
             }
             token[count++] = resourceProject[pProject], pProject++;
@@ -230,73 +256,101 @@ void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
         while (IsDigit(resourceProject[pProject])) {
           if (!IsOctOK(resourceProject[pProject])) {
             char msg[1004];
-            sprintf(msg, "Oct Error:%d,%d", lineMap[pProject],
-                    colMap[pProject]);
+            throwError("Oct Error", lineMap[pProject], colMap[pProject]);
             throw msg;
           }
           token[count++] = resourceProject[pProject], pProject++;
         }
-      } else {  //Ğ¡Êı»òÕûÊı
-        //Ê××Ö·ûÎªÊı×Ö
+      } else {  //å°æ•°æˆ–æ•´æ•°
+        //é¦–å­—ç¬¦ä¸ºæ•°å­—
         while (IsDigit(resourceProject[pProject])) {  // dec
-          //ºó¸úÊı×Ö
+          //åè·Ÿæ•°å­—
           token[count++] = resourceProject[pProject], pProject++;
-        }  //¶à¶ÁÁËÒ»¸ö×Ö·û¼ÈÊÇÏÂ´Î½«Òª¿ªÊ¼µÄÖ¸ÕëÎ»ÖÃ
+        }  //å¤šè¯»äº†ä¸€ä¸ªå­—ç¬¦æ—¢æ˜¯ä¸‹æ¬¡å°†è¦å¼€å§‹çš„æŒ‡é’ˆä½ç½®
         if (resourceProject[pProject] == '.') {
           token[count++] = resourceProject[pProject++];
           while (IsDigit(resourceProject[pProject])) {
             token[count++] = resourceProject[pProject], pProject++;
           }
-          if (tolower(resourceProject[pProject]) == 'e') {
-            while (IsDigit(resourceProject[pProject])) {
-              token[count++] = resourceProject[pProject++];
-            }
+        }
+        if (tolower(resourceProject[pProject]) == 'e') {
+          token[count++] = resourceProject[pProject++];
+          if (resourceProject[pProject] == '-')
+            token[count++] = resourceProject[pProject++];
+          while (IsDigit(resourceProject[pProject])) {
+            token[count++] = resourceProject[pProject++];
           }
-          char _[2];
-          _[0] = resourceProject[pProject], _[1] = '\0';
-          if (IsLetter(resourceProject[pProject]) ||
-              resourceProject[pProject] == '.' || !IsOpr(_)) {
-            char msg[1004];
-            sprintf(msg, "Dec Error:%d,%d", lineMap[pProject],
-                    colMap[pProject]);
-            throw msg;
-          }
+        }
+        char _[2];
+        _[0] = resourceProject[pProject], _[1] = '\0';
+        if ((!IsOpr(_) || _[0] == '.') && resourceProject[pProject] != ' ') {
+          char msg[1004];
+          throwError("Dec Error", lineMap[pProject], colMap[pProject]);
+          throw msg;
         }
       }
       token[count] = '\0';
-      syn = 99;  //³£ÊıÖÖ±ğÂë
-    } else if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == ';' ||
-               ch == '(' || ch == ')' || ch == '^' || ch == ',' || ch == '\"' ||
-               ch == '\'' || ch == '~' || ch == '#' || ch == '%' || ch == '[' ||
-               ch == ']' || ch == '{' || ch == '}' || ch == '\\' || ch == '.' ||
+      syn = 99;  //å¸¸æ•°ç§åˆ«ç 
+    } else if (ch == ';' || ch == '(' || ch == ')' || ch == '^' || ch == ',' ||
+               ch == '~' || ch == '#' || ch == '%' || ch == '[' || ch == ']' ||
+               ch == '{' || ch == '}' || ch == '\\' || ch == '.' ||
                ch == '\?' || ch == ':') {
-      //ÈôÎªÔËËã·û»òÕß½ç·û£¬²é±íµÃµ½½á¹û
+      //è‹¥ä¸ºè¿ç®—ç¬¦æˆ–è€…ç•Œç¬¦ï¼ŒæŸ¥è¡¨å¾—åˆ°ç»“æœ
       token[0] = resourceProject[pProject];
-      token[1] = '\0';  //ĞÎ³Éµ¥×Ö·û´®
+      token[1] = '\0';  //å½¢æˆå•å­—ç¬¦ä¸²
       for (i = 0; i < 36; i++) {
-        //²éÔËËã·û½ç·û±í
+        //æŸ¥è¿ç®—ç¬¦ç•Œç¬¦è¡¨
         if (strcmp(token, operatorOrDelimiter[i]) == 0) {
-          syn = 33 + i;  //»ñµÃÖÖ±ğÂë£¬Ê¹ÓÃÁËÒ»µã¼¼ÇÉ£¬Ê¹Ö®³ÊÏßĞÔÓ³Éä
-          break;  //²éµ½¼´ÍÆ³ö
+          syn = 33 + i;  //è·å¾—ç§åˆ«ç ï¼Œä½¿ç”¨äº†ä¸€ç‚¹æŠ€å·§ï¼Œä½¿ä¹‹å‘ˆçº¿æ€§æ˜ å°„
+          break;  //æŸ¥åˆ°å³æ¨å‡º
         }
       }
 
-      pProject++;  //Ö¸ÕëÏÂÒÆ£¬ÎªÏÂÒ»É¨Ãè×ö×¼±¸
+      pProject++;  //æŒ‡é’ˆä¸‹ç§»ï¼Œä¸ºä¸‹ä¸€æ‰«æåšå‡†å¤‡
       return;
+    } else if (ch == '\"' || ch == '\'') {
+      token[count++] = resourceProject[pProject++];
+      while (ch != (resourceProject[pProject])) {  // dec
+        token[count++] = resourceProject[pProject++];
+        if (pProject == resourceLen) {
+          char msg[1004];
+          throwError("String/Char Match Error", lineMap[pProject - count],
+                     colMap[pProject - count]);
+          throw msg;
+        }
+      }
+      token[count++] = resourceProject[pProject++];  //åƒæ‰"'
+      token[count] = '\0';
+      syn = 98;
+    } else if (ch == '+' || ch == '-' || ch == '*' || ch == '/') {
+      bool fnd = 0;
+      for (int j = 0; j < 4; j++) {
+        if (operatorOrDelimiter[j][0] == ch) {
+          pProject++;
+          if (resourceProject[pProject] == '=') {  //+= -= *= /=
+            syn = 69 + j, fnd = 1;
+          } else {
+            syn = 33 + j;
+            pProject--;
+          }
+          break;
+        }
+      }
+      pProject++;
     } else if (resourceProject[pProject] == '<') {
       //<,<=,<<
-      pProject++;  //ºóÒÆ£¬³¬Ç°ËÑË÷
+      pProject++;  //åç§»ï¼Œè¶…å‰æœç´¢
       if (resourceProject[pProject] == '=') {
         syn = 38;
       } else if (resourceProject[pProject] == '<') {
-        //×óÒÆ
+        //å·¦ç§»
         pProject--;
         syn = 58;
       } else {
         pProject--;
         syn = 37;
       }
-      pProject++;  //Ö¸ÕëÏÂÒÆ
+      pProject++;  //æŒ‡é’ˆä¸‹ç§»
       return;
     } else if (resourceProject[pProject] == '>') {
       //>,>=,>>
@@ -338,6 +392,8 @@ void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
       pProject++;
       if (resourceProject[pProject] == '&') {
         syn = 53;
+      } else if (resourceProject[pProject] == '=') {
+        syn = 73;
       } else {
         pProject--;
         syn = 52;
@@ -349,65 +405,76 @@ void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
       pProject++;
       if (resourceProject[pProject] == '|') {
         syn = 55;
+      } else if (resourceProject[pProject] == '=') {
+        syn = 74;
       } else {
         pProject--;
         syn = 54;
       }
       pProject++;
       return;
-    }  else if (resourceProject[pProject] == '$') {
-      //½áÊø·û
-      syn = 0;  //ÖÖ±ğÂëÎª0
+    } else if (resourceProject[pProject] == '$') {
+      //ç»“æŸç¬¦
+      syn = 0;  //ç§åˆ«ç ä¸º0
+      pProject++;
     } else {
-      //²»ÄÜ±»ÒÔÉÏ´Ê·¨·ÖÎöÊ¶±ğ£¬Ôò³ö´í¡£
-      printf("error£ºthere is no exist %c \n", ch);
-      exit(0);
+      if (resourceLen == pProject) {
+        syn = 0;
+        return;
+      }
+      //ä¸èƒ½è¢«ä»¥ä¸Šè¯æ³•åˆ†æè¯†åˆ«ï¼Œåˆ™å‡ºé”™ã€‚
+      char e[100];
+      strcpy(e, "There is no exist ");
+      int l = strlen(e);
+      e[l] = resourceProject[pProject], e[l + 1] = '\0';
+      throwError(e, lineMap[pProject], colMap[pProject]);
     }
   } catch (char *e) {
-    cout << e;
+    printf("%s\n", e);
     exit(1);
   }
 }
 
 int main() {
-  //´ò¿ªÒ»¸öÎÄ¼ş£¬¶ÁÈ¡ÆäÖĞµÄÔ´³ÌĞò
+  //æ‰“å¼€ä¸€ä¸ªæ–‡ä»¶ï¼Œè¯»å–å…¶ä¸­çš„æºç¨‹åº
   char resourceProject[10000];
   char token[20] = {0};
-  int syn = -1, i;   //³õÊ¼»¯
-  int pProject = 0;  //Ô´³ÌĞòÖ¸Õë
+  int syn = -1, i;   //åˆå§‹åŒ–
+  int pProject = 0;  //æºç¨‹åºæŒ‡é’ˆ
   FILE *fp, *fp1;
-  if ((fp = fopen("D:\\test.c", "r")) == NULL) {
-    //´ò¿ªÔ´³ÌĞò
+  if ((fp = fopen(FILENAME, "r")) == NULL) {
+    //æ‰“å¼€æºç¨‹åº
     cout << "can't open this file";
     exit(0);
   }
-  resourceProject[pProject] = fgetc(fp);  //¶ÁÈ¡Ò»¸ö×Ö·û
+  resourceProject[pProject] = fgetc(fp);  //è¯»å–ä¸€ä¸ªå­—ç¬¦
   while (resourceProject[pProject] != EOF) {
-    //½«Ô´³ÌĞò¶ÁÈëresourceProject[]Êı×é
+    //å°†æºç¨‹åºè¯»å…¥resourceProject[]æ•°ç»„
     pProject++;
     resourceProject[pProject] = fgetc(fp);
   }
-  resourceProject[++pProject] = '\0';
+  resourceProject[pProject] = '\0';
   fclose(fp);
-  cout << endl << "Ô´³ÌĞòÎª:" << endl;
+  cout << endl << "æºç¨‹åºä¸º:" << endl;
   cout << resourceProject << endl;
-  //¶ÔÔ´³ÌĞò½øĞĞ¹ıÂË
+  //å¯¹æºç¨‹åºè¿›è¡Œè¿‡æ»¤
   filterResource(resourceProject, pProject);
-  cout << endl << "¹ıÂËÖ®ºóµÄ³ÌĞò:" << endl;
+  resourceLen = strlen(resourceProject);
+  cout << endl << "è¿‡æ»¤ä¹‹åçš„ç¨‹åº:" << endl;
   cout << resourceProject << endl;
-  pProject = 0;  //´ÓÍ·¿ªÊ¼¶Á
+  pProject = 0;  //ä»å¤´å¼€å§‹è¯»
 
-  if ((fp1 = fopen("D:\\test_compile.txt", "w+")) == NULL) {
-    //´ò¿ªÔ´³ÌĞò
+  if ((fp1 = fopen("./test_compile.txt", "w+")) == NULL) {
+    //æ‰“å¼€æºç¨‹åº
     cout << "can't open this file";
     exit(0);
   }
   while (syn != 0) {
     syn = -1;
-    //Æô¶¯É¨Ãè
+    //å¯åŠ¨æ‰«æ
     GetToken(syn, resourceProject, token, pProject);
     if (syn == 100) {
-      //ÅĞ¶ÏÊÇ·ñÔÚÒÑÓĞ±êÊ¶·û±íÖĞ£¬×Ô¼ºÊµÏÖ
+      //åˆ¤æ–­æ˜¯å¦åœ¨å·²æœ‰æ ‡è¯†ç¬¦è¡¨ä¸­ï¼Œè‡ªå·±å®ç°
       int ok = 0;
       for (int i = 0; i < 100; i++)
         if (strcmp(IDentifierTbl[i], token) == 0) {
@@ -416,25 +483,29 @@ int main() {
         }
       if (!ok) strcpy(IDentifierTbl[IDentifierTblLen++], token);
 
-      printf("(±êÊ¶·û  ,%s)\n", token);
-      fprintf(fp1, "(±êÊ¶·û   ,%s)\n", token);
+      printf("(%10s   ,   %10s)\n", "æ ‡è¯†ç¬¦", token);
+      fprintf(fp1, "(%10s   ,%10s)\n", "æ ‡è¯†ç¬¦", token);
     } else if (syn >= 1 && syn <= 32) {
-      //±£Áô×Ö
-      printf("(%s   ,  --)\n", reserveWord[syn - 1]);
-      fprintf(fp1, "(%s   ,  --)\n", reserveWord[syn - 1]);
+      //ä¿ç•™å­—
+      printf("(%10s   ,   ä¿ç•™å­—)\n", reserveWord[syn - 1]);
+      fprintf(fp1, "(%10s   ,   ä¿ç•™å­—)\n", reserveWord[syn - 1]);
     } else if (syn == 99) {
-      // const ³£Êı
-      printf("(³£Êı   ,   %s)\n", token);
-      fprintf(fp1, "(³£Êı   ,   %s)\n", token);
+      // const å¸¸æ•°
+      printf("(%10s   ,   %10s)\n", "å¸¸æ•°", token);
+      fprintf(fp1, "(%10s   ,   %10s)\n", "å¸¸æ•°", token);
+    } else if (syn == 98) {
+      printf("(å­—ç¬¦ä¸²/å­—ç¬¦   ,   %10s)\n", token);
+      fprintf(fp1, "(å­—ç¬¦ä¸²/å­—ç¬¦   ,   %10s)\n", token);
     } else if (syn >= 33 && syn <= 68) {
-      printf("(%s   ,   --)\n", operatorOrDelimiter[syn - 33]);
-      fprintf(fp1, "(%s   ,   --)\n", operatorOrDelimiter[syn - 33]);
+      printf("(%10s   ,   è¿ç®—ç¬¦æˆ–ç•Œç¬¦)\n", operatorOrDelimiter[syn - 33]);
+      fprintf(fp1, "(%10s   ,   è¿ç®—ç¬¦æˆ–ç•Œç¬¦)\n",
+              operatorOrDelimiter[syn - 33]);
     }
   }
-  for (i = 0; i < 100; i++) {
-    //²åÈë±êÊ¶·û±íÖĞ
-    printf("µÚ%d¸ö±êÊ¶·û£º  %s\n", i + 1, IDentifierTbl[i]);
-    fprintf(fp1, "µÚ%d¸ö±êÊ¶·û£º  %s\n", i + 1, IDentifierTbl[i]);
+  for (i = 0; i < IDentifierTblLen; i++) {
+    //æ’å…¥æ ‡è¯†ç¬¦è¡¨ä¸­
+    printf("ç¬¬%dä¸ªæ ‡è¯†ç¬¦ï¼š  %10s\n", i + 1, IDentifierTbl[i]);
+    fprintf(fp1, "ç¬¬%dä¸ªæ ‡è¯†ç¬¦ï¼š  %10s\n", i + 1, IDentifierTbl[i]);
   }
   fclose(fp1);
   return 0;

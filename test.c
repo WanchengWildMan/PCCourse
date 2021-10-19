@@ -6,7 +6,7 @@ int main(int argc, char const *argv[])
 	/**
 	printf("NULL\n");
 	*/
-	int floatnum = 123.456;
+	int floatnum = 123456e12;
 	if(6.4 <= 5.8)
 		printf("Yes");	
 	return 0;
