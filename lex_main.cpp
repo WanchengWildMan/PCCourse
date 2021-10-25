@@ -198,7 +198,6 @@ void filterResource(char r[], int pProject) {
 
 /****************************分析子程序，算法核心***********************/
 void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
-    try {
         //根据DFA的状态转换图设计
         int i, count = 0;  // count用来做token[]的指示器，收集有用字符
         char ch;           //作为判断使用
@@ -439,10 +438,6 @@ void GetToken(int &syn, char resourceProject[], char token[], int &pProject) {
             e[l] = resourceProject[pProject], e[l + 1] = '\0';
             throwError(e, lineMap[pProject], colMap[pProject]);
         }
-    } catch (char *e) {
-        printf("%s\n", e);
-        exit(1);
-    }
 }
 
 int main() {
@@ -451,10 +446,16 @@ int main() {
     char token[20] = {0};
     int syn = -1, i;   //初始化
     int pProject = 0;  //源程序指针
-    FILE *fp, *fp1;
+    FILE *fp, *fp1,*ferr;
     if ((fp = fopen(FILENAME, "r")) == NULL) {
         //打开源程序
         cout << "can't open this file";
+        exit(0);
+    }
+    
+    if ((ferr = fopen("error.txt", "w+")) == NULL) {
+        //打开源程序
+        cout << "can't open error.txt"<<endl;;
         exit(0);
     }
     resourceProject[pProject] = fgetc(fp);  //读取一个字符
@@ -482,7 +483,13 @@ int main() {
     while (syn != 0) {
         syn = -1;
         //启动扫描
+        try{
         GetToken(syn, resourceProject, token, pProject);
+            } catch (char *e) {
+        fprintf(ferr,"%s\n", e);
+        pProject++;
+        // exit(1);
+    }
         if (syn == 100) {
             //判断是否在已有标识符表中，自己实现
             int ok = 0;
