@@ -96,17 +96,18 @@ static char IDentifierTbl[1000][50] = {""};  //标识符表
 int IDentifierTblLen = 0;
 int lineMap[1000004], colMap[1000004];
 const char FILENAME[] = "testHard.c";
-/****************************************************************************************/
+FILE *ferr;
+    /****************************************************************************************/
 
-/********查找是否是保留字*****************/
+    /********查找是否是保留字*****************/
 int searchReserve(char reserveWord[][20], char s[]) {
-    //自己实现
-    for (int i = 0; i < 32; i++) {
-        if (strcmp(reserveWord[i], s) == 0) {
-            return i + 1;
-        }
+  //自己实现
+  for (int i = 0; i < 32; i++) {
+    if (strcmp(reserveWord[i], s) == 0) {
+      return i + 1;
     }
-    return -1;
+  }
+  return -1;
 }
 /********查找保留字*****************/
 
@@ -171,10 +172,11 @@ void filterResource(char r[], int pProject) {
                     if (r[j] == '\n')
                         lineCnt++, colCnt = 1;
                     if (j == strlen(r)) {
-                        throwError("/**/ Match Error", ++lineCnt, ++colCnt);
+                        i=j+1;
+                        throwError("/**/ Match Error", lineCnt, ++colCnt);
                     }
                     if (r[j] == '/' && r[j + 1] == '*') {
-                        throwError("/**/Wrap Error", ++lineCnt, ++colCnt);
+                        throwError("/**/ Wrap Error", lineCnt, ++colCnt);
                     }
                     j++;
                 };
@@ -187,8 +189,8 @@ void filterResource(char r[], int pProject) {
                 tempString[count++] = r[i], lineMap[count - 1] = lineCnt,
                 colMap[count - 1] = ++colCnt;
         } catch (char *e) {
-            printf("%s\n", e);
-            exit(0);
+            fprintf(ferr,"%s\n", e);
+            continue;
         }
     }
     tempString[count] = '\0';
@@ -446,7 +448,7 @@ int main() {
     char token[20] = {0};
     int syn = -1, i;   //初始化
     int pProject = 0;  //源程序指针
-    FILE *fp, *fp1,*ferr;
+    FILE *fp, *fp1;
     if ((fp = fopen(FILENAME, "r")) == NULL) {
         //打开源程序
         cout << "can't open this file";
@@ -484,12 +486,12 @@ int main() {
         syn = -1;
         //启动扫描
         try{
-        GetToken(syn, resourceProject, token, pProject);
-            } catch (char *e) {
-        fprintf(ferr,"%s\n", e);
-        pProject++;
-        // exit(1);
-    }
+            GetToken(syn, resourceProject, token, pProject);
+        } catch (char *e) {
+            fprintf(ferr,"%s\n", e);
+            if (pProject < resourceLen - 1) pProject++;
+            else exit(1);
+        }
         if (syn == 100) {
             //判断是否在已有标识符表中，自己实现
             int ok = 0;
